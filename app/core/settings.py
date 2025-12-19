@@ -1,6 +1,8 @@
 import json
 
-from pydantic import BaseSettings, validator, AnyUrl
+from pydantic import validator, AnyUrl, model_validator
+from pydantic_settings import BaseSettings
+
 
 
 class Settings(BaseSettings):
@@ -35,23 +37,26 @@ class Settings(BaseSettings):
 
         raise ValueError("Unsupported type for list field")
 
-    from pydantic import root_validator
+    @model_validator(mode="after")
+    def _check_required_fields_in_production(self):
+        """
+        Выполняется после валидации модели. Проверяем, что в production:
+         - SECRET_KEY задан и не равен dev-значению,
+         - DATABASE_URL реально настроен (простая проверка).
+        Если условие не выполнено — поднимаем ValueError, который превратится в ValidationError при создании Settings().
+        """
+        if getattr(self, "APP_ENV", None) == "production":
+            secret_key = getattr(self, "SECRET_KEY", None)
+            db_url = getattr(self, "DATABASE_URL", None)
 
-    @root_validator()
-    def _check_required_fields_in_production(cls, values):
-        app_env = values.get("APP_ENV")
-        secret_key = values.get("SECRET_KEY")
-        db_url = values.get("DATABASE_URL")
-
-        # Проверяем только production-режим
-        if app_env == "production":
             if not secret_key or secret_key == "very_secret_key":
                 raise ValueError("SECRET_KEY must be set to a secure value in production")
 
+            # Простая проверка — можно усложнить (длина, схема, и т.д.)
             if not db_url or db_url.startswith("postgres://postgres:postgres@localhost"):
                 raise ValueError("DATABASE_URL must be set correctly in production")
 
-        return values
+        return self
 
     class Config:
         env_file = ".env"
@@ -62,7 +67,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 200
     REFRESH_TOKEN_EXPIRE_DAYS: int = 10
-    DATABASE_URL: AnyUrl
+    DATABASE_URL: str
     REDIS_URL: str = "redis://localhost:6379/0"
     STORAGE_BACKEND: str = "local"
     LOG_LEVEL: str = "INFO"
