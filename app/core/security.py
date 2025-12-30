@@ -1,3 +1,6 @@
+import hashlib
+import secrets
+
 import bcrypt
 
 
@@ -14,3 +17,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         plain_password.encode("utf-8"),
         hashed_password.encode("utf-8"),
     )
+
+
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

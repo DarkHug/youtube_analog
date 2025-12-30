@@ -27,25 +27,29 @@ async def create_user(user: user_schemas.UserCreate, db: Annotated[AsyncSession,
     return res
 
 
-@router.post("/login", response_model=token_schemas.Token)
+@router.post("/login", response_model=token_schemas.TokenResponse)
 async def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: AsyncSession = Depends(get_db),
 ):
-    token = await crud.login(
+    user = await crud.authenticate_user(
         db,
         email=form_data.username,
         password=form_data.password,
     )
 
-    if not token:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
 
+    access_token = crud.create_access_token(user.id)
+    refresh_token = await crud.create_refresh_token(db, user.id)
+
     return {
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
     }
 
@@ -53,3 +57,16 @@ async def login(
 @router.get("/me", response_model=user_schemas.UserRead)
 async def me(current_user=Depends(get_current_user)):
     return current_user
+
+
+@router.post("/refresh", response_model=token_schemas.TokenResponse)
+async def refresh(
+        data: token_schemas.RefreshRequest,
+        db: AsyncSession = Depends(get_db),
+):
+    tokens = await crud.refresh_tokens(db, data.refresh_token)
+
+    if not tokens:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    return tokens
