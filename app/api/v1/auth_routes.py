@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -27,8 +27,9 @@ async def create_user(user: user_schemas.UserCreate, db: Annotated[AsyncSession,
     return res
 
 
-@router.post("/login", response_model=token_schemas.TokenResponse)
+@router.post("/login", response_model=token_schemas.AccessTokenResponse)
 async def login(
+        response: Response,
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: AsyncSession = Depends(get_db),
 ):
@@ -47,9 +48,16 @@ async def login(
     access_token = crud.create_access_token(user.id)
     refresh_token = await crud.create_refresh_token(db, user.id)
 
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token,
         "token_type": "bearer",
     }
 
@@ -59,14 +67,57 @@ async def me(current_user=Depends(get_current_user)):
     return current_user
 
 
-@router.post("/refresh", response_model=token_schemas.TokenResponse)
+@router.post("/refresh", response_model=token_schemas.AccessTokenResponse)
 async def refresh(
-        data: token_schemas.RefreshRequest,
+        request: Request,
+        response: Response,
         db: AsyncSession = Depends(get_db),
 ):
-    tokens = await crud.refresh_tokens(db, data.refresh_token)
+    token = request.cookies.get("refresh_token")
 
-    if not tokens:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-    return tokens
+    result = await crud.refresh_tokens(db, token)
+
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    access_token, refresh_token = result
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+
+@router.post("/logout")
+async def logout(
+        request: Request,
+        response: Response,
+        db: AsyncSession = Depends(get_db),
+):
+    refresh_token = request.cookies.get("refresh_token")
+
+    if refresh_token:
+        await crud.logout_user(db, refresh_token)
+
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+    )
+
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
