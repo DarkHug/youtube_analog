@@ -60,21 +60,23 @@ async def refresh_tokens(session, refresh_token: str):
     if refresh_token_obj is None:
         return None
 
+    if refresh_token_obj.revoked:
+        return None
+
     user_id = refresh_token_obj.user_id
 
-    await revoke_refresh_token(session, refresh_token_obj)
+    await revoke_refresh_token(refresh_token_obj)
 
     new_refresh_token = await create_refresh_token(session, user_id)
     new_access_token = create_access_token(user_id)
 
+    await session.commit()
     return new_access_token, new_refresh_token
 
 
-
 async def logout_user(session, refresh_token: str):
-    hashed_token = hash_refresh_token(refresh_token)
-    result = await get_refresh_token(session, hashed_token)
+    result = await get_refresh_token(session, refresh_token)
     if result:
-        await revoke_refresh_token(session, result)
+        await revoke_refresh_token(result)
         await session.commit()
     return None

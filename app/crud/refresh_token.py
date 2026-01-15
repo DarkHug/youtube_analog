@@ -15,7 +15,6 @@ async def create_refresh_token(session, user_id) -> str:
     refresh_token_model = RefreshToken(user_id=user_id, token_hash=hashed_token,
                                        expires_at=datetime.utcnow() + refresh_token_lifetime, revoked=False)
     session.add(refresh_token_model)
-    await session.commit()
 
     return origin_token
 
@@ -38,6 +37,5 @@ async def get_refresh_token(session, token: str):
     return qs
 
 
-async def revoke_refresh_token(session, refresh_token: RefreshToken):
+async def revoke_refresh_token(refresh_token: RefreshToken):
     refresh_token.revoked = True
-    await session.commit()

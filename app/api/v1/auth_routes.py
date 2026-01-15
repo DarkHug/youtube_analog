@@ -47,7 +47,7 @@ async def login(
 
     access_token = crud.create_access_token(user.id)
     refresh_token = await crud.create_refresh_token(db, user.id)
-
+    await db.commit()
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
