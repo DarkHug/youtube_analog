@@ -18,8 +18,8 @@ router = APIRouter(
 
 
 @router.post('/register', response_model=user_schemas.UserRead)
-async def create_user(user: user_schemas.UserCreate, db: Annotated[AsyncSession, Depends(get_db)]):
-    res = await crud.create_user(db, user)
+async def register_user(user: user_schemas.UserCreate, db: Annotated[AsyncSession, Depends(get_db)]):
+    res = await crud.register_user(db, user)
 
     if res is None:
         raise HTTPException(status_code=400)
