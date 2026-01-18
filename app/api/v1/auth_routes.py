@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-import app.services.auth as auth_service
-import app.crud.user as crud
+
 import app.schemas.token as token_schemas
 import app.schemas.user as user_schemas
+import app.services.auth as auth_service
 from app.api.deps.deps import get_current_user
 from app.db.session import get_db
 
