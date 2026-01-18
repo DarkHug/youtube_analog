@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-
+import app.services.auth as auth_service
 import app.crud.user as crud
 import app.schemas.token as token_schemas
 import app.schemas.user as user_schemas
@@ -19,7 +19,7 @@ router = APIRouter(
 
 @router.post('/register', response_model=user_schemas.UserRead)
 async def register_user(user: user_schemas.UserCreate, db: Annotated[AsyncSession, Depends(get_db)]):
-    res = await crud.register_user(db, user)
+    res = await auth_service.register_user(db, user)
 
     if res is None:
         raise HTTPException(status_code=400)
@@ -33,7 +33,7 @@ async def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
         db: AsyncSession = Depends(get_db),
 ):
-    user = await crud.authenticate_user(
+    user = await auth_service.authenticate_user(
         db,
         email=form_data.username,
         password=form_data.password,
@@ -45,8 +45,8 @@ async def login(
             detail="Incorrect email or password",
         )
 
-    access_token = crud.create_access_token(user.id)
-    refresh_token = await crud.create_refresh_token(db, user.id)
+    access_token = auth_service.create_access_token(user.id)
+    refresh_token = await auth_service.create_refresh_token(db, user.id)
     await db.commit()
     response.set_cookie(
         key="refresh_token",
@@ -78,7 +78,7 @@ async def refresh(
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-    result = await crud.refresh_tokens(db, token)
+    result = await auth_service.refresh_tokens(db, token)
 
     if result is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
@@ -109,7 +109,7 @@ async def logout(
     refresh_token = request.cookies.get("refresh_token")
 
     if refresh_token:
-        await crud.logout_user(db, refresh_token)
+        await auth_service.logout_user(db, refresh_token)
 
     response.delete_cookie(
         key="refresh_token",

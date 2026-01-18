@@ -4,6 +4,7 @@ from app.core.jwt import create_access_token
 from app.core.security import hash_password, verify_password
 from app.crud.refresh_token import get_refresh_token, revoke_refresh_token, create_refresh_token
 from app.schemas.user import UserCreate
+from app.crud.channel import create_channel
 
 
 async def register_user(session, user_in: UserCreate):
@@ -15,8 +16,8 @@ async def register_user(session, user_in: UserCreate):
     user = models.User(email=user_in.email, hashed_password=hashed_password)
     session.add(user)
     await session.flush()
-
-    # логика создания канал
+    user_username = user.email.split("@")[0]
+    await create_channel(session, user.id, user_username, description=None)
 
     await session.commit()
     await session.refresh(user)
