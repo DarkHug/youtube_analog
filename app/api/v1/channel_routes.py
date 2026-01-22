@@ -4,6 +4,7 @@ from starlette import status
 from app.api.deps.deps import get_current_user
 from app.db.session import get_db
 import app.services.channel as channel_service
+import app.schemas.channel as channel_schema
 
 router = APIRouter(
     prefix="/v1/channel",
@@ -21,3 +22,13 @@ async def my_channel(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
     return channel
+
+
+@router.patch("/{channel_id}", response_model=channel_schema.ChannelRead)
+async def update_channel(
+        channel_to_update: channel_schema.ChannelUpdate,
+        user=Depends(get_current_user),
+        db=Depends(get_db),
+) -> channel_schema.ChannelRead:
+    await channel_service.update_channel(db, user, channel_to_update)
+    return user

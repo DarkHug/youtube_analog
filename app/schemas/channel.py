@@ -8,6 +8,7 @@ class ChannelCreate(BaseModel):
     name: str
     description: Optional[str] = None
 
+
 class ChannelRead(BaseModel):
     id: int
     name: str
@@ -16,3 +17,9 @@ class ChannelRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class ChannelUpdate(BaseModel):
+    name: Optional[str]
+    description: Optional[str]
+
+    model_config = ConfigDict(from_attributes=True)
