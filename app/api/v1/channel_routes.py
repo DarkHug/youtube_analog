@@ -24,11 +24,24 @@ async def my_channel(
     return channel
 
 
-@router.patch("/{channel_id}", response_model=channel_schema.ChannelRead)
+@router.patch("/me", response_model=channel_schema.ChannelRead)
 async def update_channel(
         channel_to_update: channel_schema.ChannelUpdate,
         user=Depends(get_current_user),
         db=Depends(get_db),
 ) -> channel_schema.ChannelRead:
-    await channel_service.update_channel(db, user, channel_to_update)
-    return user
+    channel = await channel_service.update_my_channel(db, user, channel_to_update)
+    if channel is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return channel
+
+
+@router.get("/{channel_id}", response_model=channel_schema.ChannelRead)
+async def get_channel_by_id(
+        channel_id: int,
+        db=Depends(get_db),
+):
+    channel = await channel_service.get_channel_by_id(db, channel_id)
+    if channel is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return channel
