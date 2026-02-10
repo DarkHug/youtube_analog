@@ -17,3 +17,13 @@ async def get_videos_by_channel(session, channel_id):
     stmt = select(Video).where(Video.channel_id == channel_id).order_by(Video.created_at.desc())
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+async def update_video(session, video, data):
+    if data.title is not None:
+        video.title = data.title
+        session.add(video)
+    if data.description is not None:
+        video.description = data.description
+        session.add(video)
+

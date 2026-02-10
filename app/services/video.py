@@ -22,3 +22,17 @@ async def get_my_videos(session, user_id):
 async def get_video_by_id(session, video_id):
     video = await video_crud.get_video_by_id(session, video_id)
     return video
+
+
+async def update_video(session, video_id, user_id, video_data):
+    video = await video_crud.get_video_by_id(session, video_id)
+    if not video:
+        return None
+    channel = await channel_crud.get_by_user_id(session, user_id)
+    if not channel:
+        return None
+    if video.channel_id != channel.id:
+        return 'forbidden'
+    await video_crud.update_video(session, video, video_data)
+    await session.commit()
+    return video

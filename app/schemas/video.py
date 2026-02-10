@@ -15,3 +15,8 @@ class VideoRead(BaseModel):
     description: str
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class VideoUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
