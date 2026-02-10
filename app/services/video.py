@@ -17,3 +17,8 @@ async def get_my_videos(session, user_id):
     if not channel:
         return None
     return await video_crud.get_videos_by_channel(session, channel.id)
+
+
+async def get_video_by_id(session, video_id):
+    video = await video_crud.get_video_by_id(session, video_id)
+    return video

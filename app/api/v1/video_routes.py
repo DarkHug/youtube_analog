@@ -37,3 +37,11 @@ async def my_videos(
     if result is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     return result
+
+
+@router.get('/{video_id}', response_model=video_schema.VideoRead, status_code=status.HTTP_200_OK)
+async def get_video_by_id(video_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+    video = await video_service.get_video_by_id(db, video_id)
+    if video is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return video
