@@ -13,8 +13,12 @@ async def get_video_by_id(session, video_id):
     return await session.get(Video, video_id)
 
 
-async def get_videos_by_channel(session, channel_id):
+async def get_videos_by_channel(session, channel_id, limit: int, offset: int):
     stmt = select(Video).where(Video.channel_id == channel_id).order_by(Video.created_at.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    if offset is not None:
+        stmt = stmt.offset(offset)
     result = await session.execute(stmt)
     return result.scalars().all()
 

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -32,10 +32,11 @@ async def create_video(
 async def my_videos(
         db: Annotated[AsyncSession, Depends(get_db)],
         user=Depends(get_current_user),
+        limit: int = Query(default=10, le=100), offset: int = 0
 ):
-    result = await video_service.get_my_videos(db, user.id)
+    result = await video_service.get_my_videos(db, user.id, limit, offset)
     if result is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return result
 
 
@@ -61,7 +62,10 @@ async def update_video(video_id: int,
 
 
 @router.delete('/{video_id}', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_video(video_id: int, db: Annotated[AsyncSession, Depends(get_db)], user=Depends(get_current_user)):
+async def delete_video(video_id: int,
+                       db: Annotated[AsyncSession, Depends(get_db)],
+                       user=Depends(get_current_user),
+                       ):
     video = await video_service.delete_video(db, video_id, user.id)
     if video is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
