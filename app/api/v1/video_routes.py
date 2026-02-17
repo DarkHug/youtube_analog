@@ -58,3 +58,13 @@ async def update_video(video_id: int,
     if video == "forbidden":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     return video
+
+
+@router.delete('/{video_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_video(video_id: int, db: Annotated[AsyncSession, Depends(get_db)], user=Depends(get_current_user)):
+    video = await video_service.delete_video(db, video_id, user.id)
+    if video is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if video == "forbidden":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    return None

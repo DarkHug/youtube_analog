@@ -27,3 +27,7 @@ async def update_video(session, video, data):
         video.description = data.description
         session.add(video)
 
+
+async def delete_video(session, video):
+    if video is not None:
+        session.delete(video)
