@@ -15,7 +15,13 @@ async def get_my_videos(session, user_id, limit: int, offset: int):
     channel = await channel_crud.get_by_user_id(session, user_id)
     if not channel:
         return None
-    return await video_crud.get_videos_by_channel(session, channel.id, limit, offset)
+    items, total = await video_crud.get_videos_by_channel(session, channel.id, limit, offset)
+    return {
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
 
 
 async def get_video_by_id(session, video_id):

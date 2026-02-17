@@ -28,7 +28,7 @@ async def create_video(
     return video
 
 
-@router.get('/my', response_model=list[video_schemas.VideoRead], status_code=status.HTTP_200_OK)
+@router.get('/my', response_model=video_schemas.VideoListResponse, status_code=status.HTTP_200_OK)
 async def my_videos(
         db: Annotated[AsyncSession, Depends(get_db)],
         user=Depends(get_current_user),

@@ -20,3 +20,10 @@ class VideoRead(BaseModel):
 class VideoUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+
+
+class VideoListResponse(BaseModel):
+    items: list[VideoRead]
+    total: int
+    limit: int
+    offset: int
