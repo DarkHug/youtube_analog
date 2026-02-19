@@ -29,3 +29,24 @@ async def get_current_user(
         )
 
     return user
+
+
+optional_oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/v1/login",
+    auto_error=False
+)
+
+
+async def get_optional_user(
+        token=Depends(optional_oauth2_scheme),
+        db=Depends(get_db),
+):
+    if not token:
+        return None
+
+    try:
+        user_id = decode_access_token(token)
+    except Exception:
+        return None
+    user = await user_crud.get_user_by_id(db, user_id)
+    return user

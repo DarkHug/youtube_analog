@@ -4,14 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from app.api.deps.deps import get_current_user
-from app.db.session import get_db
 import app.schemas.video as video_schemas
 import app.services.video as video_service
-import app.crud.channel as channel_crud
+from app.api.deps.deps import get_current_user, get_optional_user
+from app.db.session import get_db
 
 router = APIRouter(
-    prefix="/v1/video",
+    prefix="/v1/videos",
     tags=["Video"],
 )
 
@@ -41,8 +40,10 @@ async def my_videos(
 
 
 @router.get('/{video_id}', response_model=video_schemas.VideoRead, status_code=status.HTTP_200_OK)
-async def get_video_by_id(video_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
-    video = await video_service.get_video_by_id(db, video_id)
+async def get_video_by_id(video_id: int,
+                          db: Annotated[AsyncSession, Depends(get_db)],
+                          user=Depends(get_optional_user)):
+    video = await video_service.get_video_by_id(db, video_id, user)
     if video is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return video

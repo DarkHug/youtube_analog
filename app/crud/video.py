@@ -1,6 +1,6 @@
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 
-from app.models.video import Video
+from app.models.video import Video, VideoStatus
 
 
 async def create_video(session, channel_id, title, description):
@@ -9,19 +9,23 @@ async def create_video(session, channel_id, title, description):
     return video
 
 
-async def get_video_by_id(session, video_id, limit: int, offset: int):
+async def get_video_by_id(session, video_id):
     return await session.get(Video, video_id)
 
 
-async def get_videos_by_channel(session, channel_id, limit: int, offset: int):
-    stmt = select(Video).where(Video.channel_id == channel_id).order_by(Video.created_at.desc())
-    count = select(func.count()).select_from(Video).where(Video.channel_id == channel_id)
+async def get_videos_by_channel(session, channel_id, limit: int, offset: int, only_published: bool = False):
+    base_stmt = select(Video).where(Video.channel_id == channel_id).order_by(Video.created_at.desc())
+    if only_published:
+        base_stmt = base_stmt.where(Video.status == VideoStatus.PUBLISHED)
+    base_count = select(func.count()).select_from(Video).where(Video.channel_id == channel_id)
+    if only_published:
+        base_count = base_count.where(Video.status == VideoStatus.PUBLISHED)
     if limit is not None:
-        stmt = stmt.limit(limit)
+        base_stmt = base_stmt.limit(limit)
     if offset is not None:
-        stmt = stmt.offset(offset)
-    videos = await session.execute(stmt)
-    total = await session.scalar(count)
+        base_stmt = base_stmt.offset(offset)
+    videos = await session.execute(base_stmt)
+    total = await session.scalar(base_count)
 
     items = videos.scalars().all()
 

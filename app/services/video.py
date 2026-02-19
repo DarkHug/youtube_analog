@@ -1,5 +1,6 @@
 import app.crud.channel as channel_crud
 import app.crud.video as video_crud
+from app.models.video import VideoStatus
 
 
 async def create_video(session, user_id, video_data):
@@ -24,8 +25,21 @@ async def get_my_videos(session, user_id, limit: int, offset: int):
     }
 
 
-async def get_video_by_id(session, video_id):
+async def get_video_by_id(session, video_id, user):
     video = await video_crud.get_video_by_id(session, video_id)
+    if not video:
+        return None
+    if video.status == VideoStatus.PUBLISHED:
+        return video
+
+    if not user:
+        return None
+    channel = await channel_crud.get_by_user_id(session, user.id)
+    if not channel:
+        return None
+    if video.channel_id != channel.id:
+        return None
+
     return video
 
 

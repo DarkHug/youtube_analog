@@ -26,7 +26,7 @@ async def get_channel_videos(session, channel_id, limit, offset):
     channel = await channel_crud.get_by_id(session, channel_id)
     if not channel:
         return None
-    items, total = await video_crud.get_videos_by_channel(session, channel.id, limit, offset)
+    items, total = await video_crud.get_videos_by_channel(session, channel.id, limit, offset, only_published=True)
     return {
         "items": items,
         "total": total,

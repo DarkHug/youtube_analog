@@ -1,12 +1,26 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func, Enum
 from sqlalchemy.orm import relationship
-
+import enum
 from app.db.base import Base
+
+
+class VideoStatus(enum.StrEnum):
+    DRAFT = 'draft'
+    PUBLISHED = 'published'
 
 
 class Video(Base):
     __tablename__ = 'videos'
     id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(
+        Enum(
+            VideoStatus,
+            name="video_status",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        server_default="draft",
+    )
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
 
