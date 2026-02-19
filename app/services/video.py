@@ -69,3 +69,39 @@ async def delete_video(session, video_id, user_id):
     await video_crud.delete_video(session, video)
     await session.commit()
     return True
+
+
+async def publish_video(session, video_id, user_id):
+    video = await video_crud.get_video_by_id(session, video_id)
+    if not video:
+        return None
+    channel = await channel_crud.get_by_user_id(session, user_id)
+    if not channel:
+        return None
+    if video.channel_id != channel.id:
+        return None
+    if video.status != VideoStatus.PUBLISHED:
+        video.status = VideoStatus.PUBLISHED
+        await session.commit()
+        await session.refresh(video)
+
+    return video
+
+
+async def change_video_status(session, video_id, user_id):
+    video = await video_crud.get_video_by_id(session, video_id)
+    if not video:
+        return None
+    channel = await channel_crud.get_by_user_id(session, user_id)
+    if not channel:
+        return None
+    if video.channel_id != channel.id:
+        return None
+    if video.status == VideoStatus.PUBLISHED:
+        video.status = VideoStatus.DRAFT
+    else:
+        video.status = VideoStatus.PUBLISHED
+    await session.commit()
+    await session.refresh(video)
+
+    return video
