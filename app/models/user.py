@@ -19,3 +19,8 @@ class User(Base):
         back_populates="user",
         uselist=False
     )
+
+    video_likes = relationship(
+        "VideoLike",
+        back_populates="user",
+    )

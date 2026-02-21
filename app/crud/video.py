@@ -1,5 +1,6 @@
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, update, exists, literal
 
+from app.models import VideoLike
 from app.models.video import Video, VideoStatus
 
 
@@ -44,3 +45,43 @@ async def update_video(session, video, data):
 async def delete_video(session, video):
     if video is not None:
         session.delete(video)
+
+
+async def increment_views(session, video_id):
+    video = update(Video).where(Video.id == video_id).values(views=Video.views + 1)
+    await session.execute(video)
+
+
+async def get_video_with_meta(session, video_id: int, user_id: int | None):
+    if user_id is not None:
+        is_liked_expr = (
+            exists()
+            .where(
+                VideoLike.video_id == Video.id,
+                VideoLike.user_id == user_id,
+            )
+            .correlate(Video)
+            .label("is_liked")
+        )
+    else:
+        is_liked_expr = literal(False).label("is_liked")
+
+    stmt = (
+        select(
+            Video,
+            func.count(VideoLike.id).label("likes_count"),
+            is_liked_expr,
+        )
+        .outerjoin(VideoLike, VideoLike.video_id == Video.id)
+        .where(Video.id == video_id)
+        .group_by(Video.id)
+    )
+
+    result = await session.execute(stmt)
+    row = result.first()
+
+    if not row:
+        return None
+
+    video, likes_count, is_liked = row
+    return video, likes_count, is_liked

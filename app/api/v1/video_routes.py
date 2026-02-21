@@ -6,6 +6,7 @@ from starlette import status
 
 import app.schemas.video as video_schemas
 import app.services.video as video_service
+import app.services.video_like as video_like_service
 from app.api.deps.deps import get_current_user, get_optional_user
 from app.db.session import get_db
 
@@ -76,12 +77,23 @@ async def delete_video(video_id: int,
 
 
 @router.patch('/{video_id}/change_status', response_model=video_schemas.VideoRead, status_code=status.HTTP_200_OK)
-async def change_video_status(
-        video_id: int,
-        db: Annotated[AsyncSession, Depends(get_db)],
-        user=Depends(get_current_user),
-):
-    video = await video_service.change_video_status(db, video_id, user.id)
+async def change_video_status(video_id: int,
+                              body: video_schemas.UpdateVideoStatus,
+                              db: Annotated[AsyncSession, Depends(get_db)],
+                              user=Depends(get_current_user)):
+    target_status = body.status
+    video = await video_service.change_video_status(db, video_id, user.id, target_status)
     if video is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return video
+
+
+@router.patch('/{video_id}/like', response_model=video_schemas.VideoRead, status_code=status.HTTP_200_OK)
+async def like_video(video_id: int,
+                     db: Annotated[AsyncSession, Depends(get_db)],
+                     user=Depends(get_current_user)
+                     ):
+    result = await video_like_service.like_video(db, user.id, video_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return result
