@@ -33,6 +33,17 @@ async def get_videos_by_channel(session, channel_id, limit: int, offset: int, on
     return items, total
 
 
+async def is_video_liked_by_user(session, video_id: int, user_id: int) -> bool:
+    stmt = select(
+        exists().where(
+            VideoLike.video_id == video_id,
+            VideoLike.user_id == user_id,
+        )
+    )
+    result = await session.scalar(stmt)
+    return bool(result)
+
+
 async def update_video(session, video, data):
     if data.title is not None:
         video.title = data.title
@@ -47,30 +58,11 @@ async def delete_video(session, video):
         session.delete(video)
 
 
-async def increment_views(session, video_id):
-    video = update(Video).where(Video.id == video_id).values(views=Video.views + 1)
-    await session.execute(video)
-
-
-async def get_video_with_meta(session, video_id: int, user_id: int | None):
-    if user_id is not None:
-        is_liked_expr = (
-            exists()
-            .where(
-                VideoLike.video_id == Video.id,
-                VideoLike.user_id == user_id,
-            )
-            .correlate(Video)
-            .label("is_liked")
-        )
-    else:
-        is_liked_expr = literal(False).label("is_liked")
-
+async def get_video_with_meta(session, video_id: int):
     stmt = (
         select(
             Video,
             func.count(VideoLike.id).label("likes_count"),
-            is_liked_expr,
         )
         .outerjoin(VideoLike, VideoLike.video_id == Video.id)
         .where(Video.id == video_id)
@@ -83,5 +75,10 @@ async def get_video_with_meta(session, video_id: int, user_id: int | None):
     if not row:
         return None
 
-    video, likes_count, is_liked = row
-    return video, likes_count, is_liked
+    video, likes_count = row
+    return video, likes_count
+
+
+async def get_views_by_id(session, video_id: int) -> int | None:
+    stmt = select(Video.views).where(Video.id == video_id)
+    return await session.scalar(stmt)

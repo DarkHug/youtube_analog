@@ -9,6 +9,7 @@ import app.services.video as video_service
 import app.services.video_like as video_like_service
 from app.api.deps.deps import get_current_user, get_optional_user
 from app.db.session import get_db
+from app.infrastructure.redis_client import get_redis
 
 router = APIRouter(
     prefix="/v1/videos",
@@ -43,8 +44,9 @@ async def my_videos(
 @router.get('/{video_id}', response_model=video_schemas.VideoRead, status_code=status.HTTP_200_OK)
 async def get_video_by_id(video_id: int,
                           db: Annotated[AsyncSession, Depends(get_db)],
-                          user=Depends(get_optional_user)):
-    video = await video_service.get_video_by_id(db, video_id, user)
+                          user=Depends(get_optional_user),
+                          redis=Depends(get_redis)):
+    video = await video_service.get_video_by_id(redis, db, video_id, user)
     if video is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return video

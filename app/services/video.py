@@ -1,5 +1,8 @@
+import json
+
 import app.crud.channel as channel_crud
 import app.crud.video as video_crud
+import app.services.cache_service as cache_service
 import app.crud.video_like as video_like_crud
 from app.models.video import VideoStatus
 
@@ -26,18 +29,64 @@ async def get_my_videos(session, user_id, limit: int, offset: int):
     }
 
 
-async def get_video_by_id(session, video_id, user):
-    result = await video_crud.get_video_with_meta(
+async def increment_and_get_views(
+        redis,
         session,
-        video_id,
-        user.id if user else None,
-    )
+        video_id: int,
+        fallback_db_views: int | None = None,
+) -> int:
+    views_key = f"video:{video_id}:views"
 
+    current = await redis.get(views_key)
+
+    if current is None:
+        if fallback_db_views is not None:
+            db_views = fallback_db_views
+        else:
+            db_views = await video_crud.get_views_by_id(session, video_id)
+            if db_views is None:
+                raise ValueError("Video not found")
+
+        await redis.set(views_key, db_views)
+
+    new_value = await redis.incr(views_key)
+    return new_value
+
+
+async def get_video_by_id(redis, session, video_id: int, user):
+    meta_key = f"video:{video_id}:meta"
+
+    cached_meta = await cache_service.get(redis, meta_key)
+
+    if cached_meta:
+        views = await increment_and_get_views(
+            redis,
+            session,
+            video_id,
+        )
+        if user:
+            is_liked = await video_like_crud.is_liked(
+                session,
+                video_id,
+                user.id,
+            )
+        else:
+            is_liked = False
+
+        return {
+            **cached_meta,
+            "views": views,
+            "is_liked": is_liked,
+        }
+
+    # 2️⃣ Cache MISS → идём в БД
+    result = await video_crud.get_video_with_meta(session, video_id)
     if not result:
         return None
 
-    video, likes_count, is_liked = result
+    video, likes_count = result
 
+    # 3️⃣ Проверка доступа
     if video.status != VideoStatus.PUBLISHED:
         if not user:
             return None
@@ -46,17 +95,52 @@ async def get_video_by_id(session, video_id, user):
         if not channel or video.channel_id != channel.id:
             return None
 
-    if video.status == VideoStatus.PUBLISHED:
-        await video_crud.increment_views(session, video_id)
-        await session.commit()
-        video.views += 1
+        # Draft не кешируем и не инкрементим views
+        return {
+            "id": video.id,
+            "title": video.title,
+            "description": video.description,
+            "created_at": video.created_at,
+            "views": video.views,
+            "likes_count": likes_count,
+            "is_liked": False,
+        }
+
+    # 4️⃣ Published → работаем с views через Redis
+    views = await increment_and_get_views(
+        redis,
+        session,
+        video_id,
+        fallback_db_views=video.views,
+    )
+
+    # 5️⃣ Сохраняем meta в кеш (без views)
+    to_cache = {
+        "id": video.id,
+        "title": video.title,
+        "description": video.description,
+        "created_at": video.created_at.isoformat(),
+        "likes_count": likes_count,
+    }
+
+    await cache_service.set(redis, meta_key, to_cache, ttl=60)
+
+    # 6️⃣ is_liked
+    if user:
+        is_liked = await video_like_crud.is_video_liked_by_user(
+            session,
+            video_id,
+            user.id,
+        )
+    else:
+        is_liked = False
 
     return {
         "id": video.id,
         "title": video.title,
         "description": video.description,
         "created_at": video.created_at,
-        "views": video.views,
+        "views": views,
         "likes_count": likes_count,
         "is_liked": is_liked,
     }

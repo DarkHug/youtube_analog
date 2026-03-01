@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func, Enum
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func, Enum, BigInteger
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -33,4 +33,3 @@ class Video(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     video_likes = relationship('VideoLike', back_populates='video')
-
