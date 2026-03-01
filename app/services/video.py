@@ -127,7 +127,7 @@ async def get_video_by_id(redis, session, video_id: int, user):
 
     # 6️⃣ is_liked
     if user:
-        is_liked = await video_like_crud.is_video_liked_by_user(
+        is_liked = await video_like_crud.is_liked(
             session,
             video_id,
             user.id,
