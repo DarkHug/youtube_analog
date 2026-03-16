@@ -7,6 +7,7 @@ from app.api.v1.video_routes import router as video_router
 from app.api.v1.test_routes import router as test_router
 from app.core.settings import settings
 from app.infrastructure.redis_client import init_redis, close_redis
+from app.infrastructure.rabbitmq import init_rabbitmq, close_rabbitmq, setup_rabbitmq
 
 
 # The variable name here must match the command string ':app'
@@ -14,8 +15,11 @@ from app.infrastructure.redis_client import init_redis, close_redis
 async def lifespan(app: FastAPI):
     # 1. Срабатывает при старте приложения
     await init_redis(settings.REDIS_URL)
+    await init_rabbitmq(settings.RABBITMQ_URL)
+    await setup_rabbitmq()
     yield
     # 2. Срабатывает при выключении приложения
+    await close_rabbitmq()
     await close_redis()
 
 

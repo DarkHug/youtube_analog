@@ -1,8 +1,7 @@
 import json
 
 from pydantic import validator, AnyUrl, model_validator
-from pydantic_settings import BaseSettings
-
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -58,10 +57,6 @@ class Settings(BaseSettings):
 
         return self
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
     APP_ENV: str = "development"
     DEBUG: bool = False
     SECRET_KEY: str
@@ -69,12 +64,19 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 10
     DATABASE_URL: str
     REDIS_URL: str = "redis://localhost:6379/0"
+    RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
     STORAGE_BACKEND: str = "local"
     LOG_LEVEL: str = "INFO"
     MAX_UPLOAD_SIZE_MB: int = 100
 
     ALLOWED_HOSTS: list[str] = []
     CORS_ORIGINS: list[str] = []
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 settings = Settings()

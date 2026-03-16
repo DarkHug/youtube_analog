@@ -1,9 +1,15 @@
 from fastapi import APIRouter, Depends
 import app.services.cache_service as cache_service
-
+import app.infrastructure.rabbitmq as rabbitmq
 from app.infrastructure.redis_client import get_redis
+from app.infrastructure.rabbitmq import get_channel
 
 router = APIRouter(prefix="/test", tags=["test"])
+
+
+@router.get("/rabbit_ping")
+async def check_rabbit(rabbit=Depends(get_channel)):
+    await rabbitmq.publish_message("video.views.sync", {"test": "data"})
 
 
 @router.get("/redis_check")

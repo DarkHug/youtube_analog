@@ -15,9 +15,16 @@ async def get_video_by_id(session, video_id):
 
 
 async def get_videos_by_channel(session, channel_id, limit: int, offset: int, only_published: bool = False):
-    base_stmt = select(Video).where(Video.channel_id == channel_id).order_by(Video.created_at.desc())
+    base_stmt = (
+        select(Video, func.count(VideoLike.id).label("likes_count"))
+        .outerjoin(VideoLike, VideoLike.video_id == Video.id)
+        .where(Video.channel_id == channel_id)
+        .group_by(Video.id)
+        .order_by(Video.created_at.desc())
+    )
     if only_published:
         base_stmt = base_stmt.where(Video.status == VideoStatus.PUBLISHED)
+
     base_count = select(func.count()).select_from(Video).where(Video.channel_id == channel_id)
     if only_published:
         base_count = base_count.where(Video.status == VideoStatus.PUBLISHED)
@@ -25,12 +32,12 @@ async def get_videos_by_channel(session, channel_id, limit: int, offset: int, on
         base_stmt = base_stmt.limit(limit)
     if offset is not None:
         base_stmt = base_stmt.offset(offset)
-    videos = await session.execute(base_stmt)
+
+    result = await session.execute(base_stmt)
     total = await session.scalar(base_count)
 
-    items = videos.scalars().all()
-
-    return items, total
+    rows = result.all()
+    return rows, total
 
 
 async def is_video_liked_by_user(session, video_id: int, user_id: int) -> bool:

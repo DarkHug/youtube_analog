@@ -5,6 +5,7 @@ import app.crud.video as video_crud
 import app.services.cache_service as cache_service
 import app.crud.video_like as video_like_crud
 from app.models.video import VideoStatus
+from app.infrastructure.rabbitmq import publish_message
 
 
 async def create_video(session, user_id, video_data):
@@ -20,12 +21,28 @@ async def get_my_videos(session, user_id, limit: int, offset: int):
     channel = await channel_crud.get_by_user_id(session, user_id)
     if not channel:
         return None
-    items, total = await video_crud.get_videos_by_channel(session, channel.id, limit, offset)
+
+    rows, total = await video_crud.get_videos_by_channel(session, channel.id, limit, offset)
+
+    items = [
+        {
+            "id": video.id,
+            "title": video.title,
+            "description": video.description,
+            "status": video.status,
+            "views": video.views,
+            "created_at": video.created_at,
+            "likes_count": likes_count,
+            "is_liked": False,
+        }
+        for video, likes_count in rows
+    ]
+
     return {
         "items": items,
         "total": total,
         "limit": limit,
-        "offset": offset
+        "offset": offset,
     }
 
 
@@ -64,6 +81,12 @@ async def get_video_by_id(redis, session, video_id: int, user):
             session,
             video_id,
         )
+
+        await publish_message(
+            routing_key="video.views.sync",
+            data={"video_id": video_id, "views": 1},
+        )
+
         if user:
             is_liked = await video_like_crud.is_liked(
                 session,
@@ -112,6 +135,11 @@ async def get_video_by_id(redis, session, video_id: int, user):
         session,
         video_id,
         fallback_db_views=video.views,
+    )
+
+    await publish_message(
+        routing_key="video.views.sync",
+        data={"video_id": video_id, "views": 1},
     )
 
     # 5️⃣ Сохраняем meta в кеш (без views)
